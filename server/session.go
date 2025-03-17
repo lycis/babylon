@@ -14,8 +14,18 @@ var sessionMutex sync.Mutex
 var activeSessions map[uuid.UUID]SessionInfo
 
 type SessionInfo struct {
-	UUID          uuid.UUID
-	lastKeepalive time.Time
+	UUID          uuid.UUID      `json:"uuid"`
+	lastKeepalive time.Time      `json:"-"`
+	Context       SessionContext `json:"context"`
+}
+
+type SessionContext struct {
+	Log []SessionLogMessage
+}
+
+type SessionLogMessage struct {
+	TimeStamp time.Time
+	Message   string
 }
 
 func init() {
@@ -55,6 +65,9 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	sinfo := SessionInfo{
 		UUID:          id,
 		lastKeepalive: time.Now(),
+		Context: SessionContext{
+			Log: make([]SessionLogMessage, 0),
+		},
 	}
 
 	activeSessions[id] = sinfo
@@ -96,7 +109,37 @@ func handleSessionDetails(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		delete(activeSessions, sinfo.UUID)
 		logger.With("uuid", sinfo.UUID.String()).Info("Session deleted.")
+	case http.MethodPost:
+		appendToSession(w, r, sinfo)
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
 	}
+}
+
+type sessionContextRequest struct {
+	Type       string `json:"type"`
+	LogMessage string `json:"logMessage"`
+}
+
+func appendToSession(w http.ResponseWriter, r *http.Request, sinfo SessionInfo) {
+	var req sessionContextRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	logger.With("type", req.Type).Info("Received session context.")
+	switch req.Type {
+	case "logMessage":
+		appendLogMessageToSession(sinfo, req.LogMessage)
+	default:
+		http.Error(w, "invalid context type", http.StatusBadRequest)
+	}
+}
+
+func appendLogMessageToSession(sinfo SessionInfo, msg string) {
+	sinfo.Context.Log = append(sinfo.Context.Log, SessionLogMessage{
+		TimeStamp: time.Now(),
+		Message:   msg,
+	})
 }
