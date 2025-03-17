@@ -11,7 +11,7 @@ import (
 )
 
 var sessionMutex sync.Mutex
-var activeSessions map[uuid.UUID]SessionInfo
+var activeSessions map[uuid.UUID]*SessionInfo
 
 type SessionInfo struct {
 	UUID          uuid.UUID      `json:"uuid"`
@@ -24,12 +24,12 @@ type SessionContext struct {
 }
 
 type SessionLogMessage struct {
-	TimeStamp time.Time
-	Message   string
+	TimeStamp time.Time `json:"timestamp"`
+	Message   string    `json:"message"`
 }
 
 func init() {
-	activeSessions = make(map[uuid.UUID]SessionInfo)
+	activeSessions = make(map[uuid.UUID]*SessionInfo)
 	go sessionCleanup()
 }
 
@@ -70,7 +70,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	activeSessions[id] = sinfo
+	activeSessions[id] = &sinfo
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
@@ -111,6 +111,10 @@ func handleSessionDetails(w http.ResponseWriter, r *http.Request) {
 		logger.With("uuid", sinfo.UUID.String()).Info("Session deleted.")
 	case http.MethodPost:
 		appendToSession(w, r, sinfo)
+	case http.MethodGet:
+		w.WriteHeader(http.StatusCreated)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(sinfo)
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
 	}
@@ -121,7 +125,7 @@ type sessionContextRequest struct {
 	LogMessage string `json:"logMessage"`
 }
 
-func appendToSession(w http.ResponseWriter, r *http.Request, sinfo SessionInfo) {
+func appendToSession(w http.ResponseWriter, r *http.Request, sinfo *SessionInfo) {
 	var req sessionContextRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -137,7 +141,7 @@ func appendToSession(w http.ResponseWriter, r *http.Request, sinfo SessionInfo) 
 	}
 }
 
-func appendLogMessageToSession(sinfo SessionInfo, msg string) {
+func appendLogMessageToSession(sinfo *SessionInfo, msg string) {
 	sinfo.Context.Log = append(sinfo.Context.Log, SessionLogMessage{
 		TimeStamp: time.Now(),
 		Message:   msg,
