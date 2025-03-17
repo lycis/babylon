@@ -72,6 +72,10 @@ func handleSessionDetails(w http.ResponseWriter, r *http.Request) {
 
 	sid := r.PathValue("id")
 	if len(sid) == 0 {
+		if r.Method == http.MethodGet {
+			createSession(w, r)
+			return
+		}
 		http.Error(w, "missing session id", http.StatusBadRequest)
 		return
 	}
