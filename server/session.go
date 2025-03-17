@@ -20,7 +20,7 @@ type SessionInfo struct {
 }
 
 type SessionContext struct {
-	Log []SessionLogMessage
+	Log []SessionLogMessage `json:"log"`
 }
 
 type SessionLogMessage struct {
