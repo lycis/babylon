@@ -1,0 +1,54 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+// DriverExecutionRequest sent by the test script.
+type DriverExecutionRequest struct {
+	DriverType string         `json:"type"`
+	Action     string         `json:"action"`
+	Parameters map[string]any `json:"parameters"`
+}
+
+func runDriver(w http.ResponseWriter, r *http.Request) {
+	var testReq DriverExecutionRequest
+	if err := json.NewDecoder(r.Body).Decode(&testReq); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	driver := findDriverByType(testReq.DriverType)
+	if driver == nil {
+		http.Error(w, "no supported driver", http.StatusBadGateway)
+		return
+	}
+
+	// Forward the request to the BookingServiceDriver service.
+	driverURL := fmt.Sprintf("%sdriverExecute", driver.Callback)
+	reqJSON, err := json.Marshal(testReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := http.Post(driverURL, "application/json", bytes.NewBuffer(reqJSON))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
