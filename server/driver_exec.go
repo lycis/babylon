@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 // DriverExecutionRequest sent by the test script.
 type DriverExecutionRequest struct {
-	DriverType string         `json:"type"`
-	Action     string         `json:"action"`
-	Parameters map[string]any `json:"parameters"`
+	SessionUUID string         `json:"session"`
+	DriverType  string         `json:"type"`
+	Action      string         `json:"action"`
+	Parameters  map[string]any `json:"parameters"`
 }
 
 func runDriver(w http.ResponseWriter, r *http.Request) {
@@ -22,11 +25,28 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(testReq.SessionUUID) < 1 || testReq.SessionUUID == "" {
+		http.Error(w, "missing session id", http.StatusBadRequest)
+	}
+
+	uuid, err := uuid.Parse(testReq.SessionUUID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("malformed session id: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	sinfo, exists := activeSessions[uuid]
+	if !exists {
+		http.Error(w, "unknown session id", http.StatusBadRequest)
+	}
+
 	driver := findDriverByType(testReq.DriverType)
 	if driver == nil {
 		http.Error(w, "no supported driver", http.StatusBadGateway)
 		return
 	}
+
+	appendLogMessageToSession(sinfo, fmt.Sprintf("Executing action '%s' on driver '%s'.", testReq.Action, driver.Name))
 
 	// Forward the request to the BookingServiceDriver service.
 	driverURL := fmt.Sprintf("%sdriverExecute", driver.Callback)
