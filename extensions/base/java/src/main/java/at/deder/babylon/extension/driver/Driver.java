@@ -61,10 +61,18 @@ public abstract class Driver implements Extension {
         return;
       }
 
+      if(!data.containsKey("session")) {
+        context.response().setStatusCode(400);
+        context.json(new JsonObject().put("error", "missing session id"));
+        logger.warn("Received invalid request. source=\"{} ({})\" reason=\"missing session id\"", hostAddress,hostName);
+        return;
+      }
+
+      String session = data.getString("session");
       String action = data.getString("action");
       Map<String, Object> parameters = null;
 
-      logger.info("Received driver exection request. source=\"{} ({})\" action=\"{}\"", hostAddress,hostName,action);
+      logger.info("Received driver execution request. source=\"{} ({})\" session=\"{}\" action=\"{}\"", hostAddress,hostName,session,action);
 
       if(data.containsKey("parameters")) {
         parameters = data.getJsonObject("parameters").getMap();
