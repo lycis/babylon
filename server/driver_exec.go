@@ -51,7 +51,7 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 	appendLogMessageToSession(sinfo, fmt.Sprintf("Executing action '%s' on driver '%s'.", testReq.Action, driver.Name))
 
 	// Forward the request to the BookingServiceDriver service.
-	driverURL := fmt.Sprintf("%sdriverExecute", driver.Callback)
+	driverURL := fmt.Sprintf("%sdriver/%s/execute", driver.Callback, driver.Name)
 	reqJSON, err := json.Marshal(testReq)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
