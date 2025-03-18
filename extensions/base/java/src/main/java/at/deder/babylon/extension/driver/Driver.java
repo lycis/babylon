@@ -40,8 +40,8 @@ public abstract class Driver implements Extension {
 
   public void setupEndpoint(Router router) {
     Logger logger = LogManager.getLogger();
-    router.post("/driverExecute").handler(BodyHandler.create());
-    router.post("/driverExecute").handler(context -> {
+    router.post("/driver/"+getName()+"/execute").handler(BodyHandler.create());
+    router.post("/driver/"+getName()+"/execute").handler(context -> {
 
       JsonObject data = context.body().asJsonObject();
       String hostAddress = context.request().remoteAddress().hostAddress();
@@ -101,8 +101,8 @@ public abstract class Driver implements Extension {
           retryCounter++;
           registerRemote(vertx);
         } else {
-          LOGGER.fatal("Failed to register driver. Retreies used up. error=\"{}\"", e.getMessage());
-          throw new RuntimeException("Failed to register driver. Retreies used up.");
+          LOGGER.fatal("Failed to register driver. Retries used up. error=\"{}\"", e.getMessage());
+          throw new RuntimeException("Failed to register driver. Retries used up.");
         }
       });
   }
