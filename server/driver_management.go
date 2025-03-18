@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -52,9 +54,14 @@ func registerDriver(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if registerReq.Callback == "" || len(registerReq.Callback) < 1 {
+			registerReq.Callback = fmt.Sprintf("http://%s:8082/", strings.Split(r.RemoteAddr, ":")[0])
+		}
+
 		knownDrivers[registerReq.Name] = DriverInfo(registerReq)
 
 		logger.With("name", registerReq.Name, "type", registerReq.Type, "callback", registerReq.Callback).Info("New driver registered.")
+		return
 	} else if r.Method == http.MethodDelete {
 		var deleteReq DriverDeleteRequest
 		if err := json.NewDecoder(r.Body).Decode(&deleteReq); err != nil {
@@ -64,6 +71,7 @@ func registerDriver(w http.ResponseWriter, r *http.Request) {
 
 		delete(knownDrivers, deleteReq.Name)
 		logger.With("name", deleteReq.Name).Info("Driver delted.")
+		return
 	}
 
 	http.Error(w, "invalid http method", http.StatusBadRequest)

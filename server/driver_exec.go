@@ -29,6 +29,8 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing session id", http.StatusBadRequest)
 	}
 
+	logger.With("session", testReq.SessionUUID, "type", testReq.DriverType, "action", testReq.Action).Info("Driver execution request received.")
+
 	uuid, err := uuid.Parse(testReq.SessionUUID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("malformed session id: %s", err.Error()), http.StatusBadRequest)
