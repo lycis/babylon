@@ -18,6 +18,11 @@ type DriverExecutionRequest struct {
 	Parameters  map[string]any `json:"parameters"`
 }
 
+type DriverExecutionResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 func runDriver(w http.ResponseWriter, r *http.Request) {
 	var testReq DriverExecutionRequest
 	if err := json.NewDecoder(r.Body).Decode(&testReq); err != nil {
@@ -69,6 +74,22 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	var result DriverExecutionResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		http.Error(w, err.Error(), http.StatusFailedDependency)
+		return
+	}
+
+	if result.Success {
+		appendLogMessageToSession(sinfo, "Driver action: SUCCESS")
+	} else {
+		appendLogMessageToSession(sinfo, "Driver action: FAILED")
+	}
+
+	if len(result.Message) > 0 {
+		appendLogMessageToSession(sinfo, result.Message)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
