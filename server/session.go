@@ -93,6 +93,11 @@ func handleSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func createSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "invalid method", http.StatusBadRequest)
+		return
+	}
+
 	id := uuid.New()
 	sinfo := SessionInfo{
 		UUID:          id,
