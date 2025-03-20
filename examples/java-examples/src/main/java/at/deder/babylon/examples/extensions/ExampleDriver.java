@@ -1,4 +1,4 @@
-package at.deder.babylon.extension.example;
+package at.deder.babylon.examples.extensions;
 
 
 import at.deder.babylon.extension.BabylonExtensionServer;
