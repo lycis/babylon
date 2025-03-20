@@ -13,7 +13,7 @@ public class Main {
         System.out.println("action result = "+result.success()+" - "+result.message());
         System.out.println(api.refreshSessionInfo().context().log()
                 .stream()
-                .map(SessionLogMessage::message)
+                .map(log -> log.timestamp() + "-" + log.type() + "-" + log.message())
                 .reduce("", (s,n) -> s+"\n"+n));
     }
 }

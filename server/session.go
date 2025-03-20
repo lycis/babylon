@@ -74,7 +74,7 @@ func (c *SessionContext) appendLog(msgtype string, msg string) {
 
 type SessionLogMessage struct {
 	TimeStamp   time.Time `json:"timestamp"`
-	MessageType string    `json:"messagetype"`
+	MessageType string    `json:"type"`
 	Message     string    `json:"message"`
 }
 
@@ -106,7 +106,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sinfo)
+	json.NewEncoder(w).Encode(&sinfo)
 
 	logger.With("uuid", sinfo.UUID.String()).Info("New session created.")
 }
