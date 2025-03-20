@@ -53,7 +53,7 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appendLogMessageToSession(sinfo, fmt.Sprintf("Executing action '%s' on driver '%s'.", testReq.Action, driver.Name))
+	sinfo.Context.appendLog("system", fmt.Sprintf("Executing action '%s' on driver '%s'.", testReq.Action, driver.Name))
 
 	// Forward the request to the BookingServiceDriver service.
 	driverURL := fmt.Sprintf("%sdriver/%s/execute", driver.Callback, driver.Name)
@@ -83,13 +83,13 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Success {
-		appendLogMessageToSession(sinfo, "Driver action: SUCCESS")
+		sinfo.Context.appendLog("system", "Driver action: SUCCESS")
 	} else {
-		appendLogMessageToSession(sinfo, "Driver action: FAILED")
+		sinfo.Context.appendLog("system", "Driver action: FAILED")
 	}
 
 	if len(result.Message) > 0 {
-		appendLogMessageToSession(sinfo, result.Message)
+		sinfo.Context.appendLog("message", result.Message)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -58,12 +58,24 @@ type SessionInfo struct {
 }
 
 type SessionContext struct {
-	Log []SessionLogMessage `json:"log"`
+	mutex sync.Mutex
+	Log   []SessionLogMessage `json:"log"`
+}
+
+func (c *SessionContext) appendLog(msgtype string, msg string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.Log = append(c.Log, SessionLogMessage{
+		TimeStamp:   time.Now(),
+		MessageType: msgtype,
+		Message:     msg,
+	})
 }
 
 type SessionLogMessage struct {
-	TimeStamp time.Time `json:"timestamp"`
-	Message   string    `json:"message"`
+	TimeStamp   time.Time `json:"timestamp"`
+	MessageType string    `json:"messagetype"`
+	Message     string    `json:"message"`
 }
 
 func init() {
@@ -150,18 +162,11 @@ func appendToSession(w http.ResponseWriter, r *http.Request, sinfo *SessionInfo)
 		return
 	}
 
-	logger.With("type", req.Type).Info("Received session context.")
+	logger.With("type", req.Type, "session", sinfo.UUID).Info("Received session context.")
 	switch req.Type {
 	case "logMessage":
-		appendLogMessageToSession(sinfo, req.LogMessage)
+		sinfo.Context.appendLog("message", req.LogMessage)
 	default:
 		http.Error(w, "invalid context type", http.StatusBadRequest)
 	}
-}
-
-func appendLogMessageToSession(sinfo *SessionInfo, msg string) {
-	sinfo.Context.Log = append(sinfo.Context.Log, SessionLogMessage{
-		TimeStamp: time.Now(),
-		Message:   msg,
-	})
 }

@@ -2,6 +2,7 @@ package at.deder.babylon.examples.client;
 
 import at.deder.babylon.client.BabylonClient;
 import at.deder.babylon.client.Session;
+import at.deder.babylon.client.SessionLogMessage;
 
 public class Main {
     public static void main(String... args) {
@@ -10,5 +11,9 @@ public class Main {
         System.out.println("New session: "+session.uuid());
         var result = api.driver("example").action("exampleAction").parameter("a", 4711).execute();
         System.out.println("action result = "+result.success()+" - "+result.message());
+        System.out.println(api.refreshSessionInfo().context().log()
+                .stream()
+                .map(SessionLogMessage::message)
+                .reduce("", (s,n) -> s+"\n"+n));
     }
 }

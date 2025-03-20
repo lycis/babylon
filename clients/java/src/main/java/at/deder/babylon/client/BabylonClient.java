@@ -44,4 +44,9 @@ public class BabylonClient {
     public BabylonClientAPI api() {
         return api;
     }
+
+    public synchronized Session refreshSessionInfo() {
+        currentSession = api.sessionInfo(session().uuid());
+        return currentSession;
+    }
 }
