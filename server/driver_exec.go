@@ -42,11 +42,8 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionMutex.Lock()
-	defer sessionMutex.Unlock()
-
-	sinfo, exists := activeSessions[uuid]
-	if !exists {
+	sinfo := session_register.getSession(uuid)
+	if sinfo == nil {
 		http.Error(w, "unknown session id", http.StatusBadRequest)
 	}
 

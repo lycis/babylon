@@ -10,8 +10,46 @@ import (
 	"github.com/google/uuid"
 )
 
-var sessionMutex sync.Mutex
-var activeSessions map[uuid.UUID]*SessionInfo
+type sessionRegister struct {
+	sessionMutex   sync.Mutex
+	activeSessions map[uuid.UUID]*SessionInfo
+}
+
+func (r *sessionRegister) addSession(sinfo *SessionInfo) {
+	r.sessionMutex.Lock()
+	defer r.sessionMutex.Unlock()
+
+	r.activeSessions[sinfo.UUID] = sinfo
+}
+
+func (r *sessionRegister) sessionCleanup() {
+	ticker := time.Tick(5 * time.Second)
+	for now := range ticker {
+		logger.Debug("Running session cleanup")
+		r.sessionMutex.Lock()
+		for _, sinfo := range r.activeSessions {
+			if sinfo.lastKeepalive.Before(now.Add(-5 * time.Minute)) {
+				logger.With("uuid", sinfo.UUID.String()).Info("Cleaned inactive session.")
+				delete(r.activeSessions, sinfo.UUID)
+			}
+		}
+		r.sessionMutex.Unlock()
+	}
+}
+
+func (r *sessionRegister) getSession(id uuid.UUID) *SessionInfo {
+	r.sessionMutex.Lock()
+	defer r.sessionMutex.Unlock()
+	return r.activeSessions[id]
+}
+
+func (r *sessionRegister) removeSession(id uuid.UUID) {
+	r.sessionMutex.Lock()
+	defer r.sessionMutex.Unlock()
+	delete(r.activeSessions, id)
+}
+
+var session_register sessionRegister
 
 type SessionInfo struct {
 	UUID          uuid.UUID      `json:"uuid"`
@@ -29,23 +67,8 @@ type SessionLogMessage struct {
 }
 
 func init() {
-	activeSessions = make(map[uuid.UUID]*SessionInfo)
-	go sessionCleanup()
-}
-
-func sessionCleanup() {
-	ticker := time.Tick(5 * time.Second)
-	for now := range ticker {
-		logger.Debug("Running session cleanup")
-		sessionMutex.Lock()
-		for _, sinfo := range activeSessions {
-			if sinfo.lastKeepalive.Before(now.Add(-5 * time.Minute)) {
-				logger.With("uuid", sinfo.UUID.String()).Info("Cleaned inactive session.")
-				delete(activeSessions, sinfo.UUID)
-			}
-		}
-		sessionMutex.Unlock()
-	}
+	session_register.activeSessions = make(map[uuid.UUID]*SessionInfo)
+	go session_register.sessionCleanup()
 }
 
 func handleSession(w http.ResponseWriter, r *http.Request) {
@@ -58,9 +81,6 @@ func handleSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func createSession(w http.ResponseWriter, r *http.Request) {
-	sessionMutex.Lock()
-	defer sessionMutex.Unlock()
-
 	id := uuid.New()
 	sinfo := SessionInfo{
 		UUID:          id,
@@ -70,7 +90,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	activeSessions[id] = &sinfo
+	session_register.addSession(&sinfo)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
@@ -80,8 +100,6 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSessionDetails(w http.ResponseWriter, r *http.Request) {
-	sessionMutex.Lock()
-	defer sessionMutex.Unlock()
 
 	sid := r.PathValue("id")
 	if len(sid) == 0 {
@@ -99,15 +117,15 @@ func handleSessionDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sinfo, exists := activeSessions[uuid]
-	if !exists {
+	sinfo := session_register.getSession(uuid)
+	if sinfo == nil {
 		http.Error(w, "invalid session", http.StatusNotFound)
 		return
 	}
 
 	switch r.Method {
 	case http.MethodDelete:
-		delete(activeSessions, sinfo.UUID)
+		session_register.removeSession(sinfo.UUID)
 		logger.With("uuid", sinfo.UUID.String()).Info("Session deleted.")
 	case http.MethodPost:
 		appendToSession(w, r, sinfo)
