@@ -58,7 +58,7 @@ type SessionInfo struct {
 }
 
 type SessionContext struct {
-	mutex sync.Mutex
+	mutex sync.Mutex          `json:"-"`
 	Log   []SessionLogMessage `json:"log"`
 }
 
