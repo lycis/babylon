@@ -48,11 +48,16 @@ public abstract class BabylonExtensionServer extends AbstractVerticle {
         startPromise.fail(throwable);
       });
 
+    updateExtensionServer();
     registerWithRemoteServer();
   }
 
+  private void updateExtensionServer() {
+    extensions.forEach(ext ->ext.setExtensionServer(this));
+  }
+
   private void registerWithRemoteServer() {
-    extensions.forEach(ext -> ext.registerRemote(vertx));
+    extensions.stream().filter(Extension::connectOnStartupEnabled).forEach(ext -> ext.registerRemote(vertx));
   }
 
   public void addExtension(Extension ext) {
@@ -65,5 +70,9 @@ public abstract class BabylonExtensionServer extends AbstractVerticle {
 
   public void setPort(int port) {
     this.port = port;
+  }
+
+  public String getHostName() {
+    return "localhost";
   }
 }

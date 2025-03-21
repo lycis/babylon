@@ -1,0 +1,8 @@
+hostname: localhost
+port: 8080
+security:
+  driverSelfManagement: true
+drivers:
+  exampleJavaDriver: 
+    callback: http://localhost:8082
+    secret: someTestSecret

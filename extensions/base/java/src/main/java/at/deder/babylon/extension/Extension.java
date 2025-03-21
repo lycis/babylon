@@ -10,4 +10,8 @@ public interface Extension {
   void registerRemote(Vertx vertx);
 
   void setRemoteServer(String serverHostName, int serverPort);
+
+  boolean connectOnStartupEnabled();
+
+  void setExtensionServer(BabylonExtensionServer extensionServer);
 }

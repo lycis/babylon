@@ -11,7 +11,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ExampleTest {
     private static BabylonClient babylon;
-    private Session session;
 
     @BeforeAll
     public static void setupBabylon() {
@@ -20,7 +19,7 @@ public class ExampleTest {
 
     @BeforeEach
     public void beforeEach() {
-        session = babylon.session();
+        babylon.session();
     }
 
     @AfterEach

@@ -19,11 +19,21 @@ public class ExampleDriver  extends Driver {
 
   @Override
   public String getName() {
-    return "ExampleJavaDriver";
+    return "examplejavadriver";
   }
 
   @Override
   public String getType() {
     return "example";
+  }
+
+  @Override
+  public String getSecret() {
+    return "someTestSecret";
+  }
+
+  @Override
+  public boolean connectOnStartupEnabled() {
+    return false;
   }
 }

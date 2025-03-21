@@ -1,17 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/spf13/viper"
 )
 
 type DriverInfo struct {
 	Name     string
 	Type     string
 	Callback string
+	Secret   string
 }
 
 // list of all known / registered drivers with their callback
@@ -37,6 +42,7 @@ type DriverRegisterRequest struct {
 	Name     string `json:"driver"`
 	Type     string `json:"type"`
 	Callback string `json:"callback"`
+	Secret   string `json:"secret"`
 }
 
 type DriverDeleteRequest struct {
@@ -75,4 +81,72 @@ func registerDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "invalid http method", http.StatusBadRequest)
+}
+
+type serverRegistrationRequest struct {
+	Callback string `json:"callback"`
+}
+
+func setupPreconfiguredDriver(name string) {
+	knownDriversMutex.Lock()
+	defer knownDriversMutex.Unlock()
+
+	if !viper.IsSet(fmt.Sprintf("drivers.%s.callback", name)) {
+		logger.With("driver", name).Error("Preconfigured driver is missing callback.")
+		return
+	}
+
+	callback := viper.GetString(fmt.Sprintf("drivers.%s.callback", name))
+	secret := viper.GetString(fmt.Sprintf("drivers.%s.secret", name))
+	if !viper.IsSet(fmt.Sprintf("drivers.%s.secret", name)) {
+		secret = ""
+	}
+
+	if !strings.HasSuffix(callback, "/") {
+		callback += "/"
+	}
+
+	driverURL := fmt.Sprintf("%sdriver/%s/serverConnect", callback, name)
+	req := serverRegistrationRequest{
+		Callback: fmt.Sprintf("http://%s:%d/", viper.GetString("hostname"), viper.GetInt("port")),
+	}
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		logger.With("driverName", name, "error", err).Error("Failed to marshal server side registration request.")
+		return
+	}
+
+	resp, err := http.Post(driverURL, "application/json", bytes.NewBuffer(reqJSON))
+	if err != nil {
+		logger.With("driverName", name, "error", err).Error("Failed to attach server to driver.")
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		logger.With("driverName", name, "statusCode", resp.StatusCode).Error("Failed to attach server to driver. Check driver logs.")
+		return
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.With("driverName", name, "error", err).Error("Failed reading driver response on server side registration.")
+		return
+	}
+
+	var result DriverRegisterRequest
+	if err := json.Unmarshal(body, &result); err != nil {
+		logger.With("driverName", name, "error", err).Error("Failed parsing driver response on server side registration.")
+		return
+	}
+
+	if result.Secret != secret {
+		logger.With("driverName", name).Error("Server side driver registration aborted. Invalid secret from driver.")
+		return
+	}
+
+	knownDrivers[name] = DriverInfo(result)
+	logger.With("driverName", name).Info("Server side driver registered.")
+	return
 }
