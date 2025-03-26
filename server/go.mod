@@ -1,4 +1,4 @@
-module github.com/lycis/maestro-server
+module github.com/lycis/babylon/server
 
 go 1.22.0
 
