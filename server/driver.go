@@ -149,7 +149,6 @@ func setupPreconfiguredDriver(name string) {
 
 	knownDrivers[name] = DriverInfo(result)
 	logger.With("driverName", name).Info("Server side driver registered.")
-	return
 }
 
 // DriverExecutionRequest sent by the test script.
