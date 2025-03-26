@@ -107,6 +107,7 @@ func TestHandleSessionDetails_GetExisting(t *testing.T) {
 	url := fmt.Sprintf("/session/%s", id.String())
 	req := newRequestWithSessionID(http.MethodGet, url, id.String(), nil)
 	w := httptest.NewRecorder()
+	req.SetPathValue("id", id.String())
 	handleSessionDetails(w, req)
 	resp := w.Result()
 	if resp.StatusCode != http.StatusCreated {
@@ -132,6 +133,7 @@ func TestHandleSessionDetails_Delete(t *testing.T) {
 	url := fmt.Sprintf("/session/%s", id.String())
 	req := newRequestWithSessionID(http.MethodDelete, url, id.String(), nil)
 	w := httptest.NewRecorder()
+	req.SetPathValue("id", id.String())
 	handleSessionDetails(w, req)
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {
@@ -147,6 +149,7 @@ func TestHandleSessionDetails_MalformedID(t *testing.T) {
 	url := fmt.Sprintf("/session/%s", badID)
 	req := newRequestWithSessionID(http.MethodGet, url, badID, nil)
 	w := httptest.NewRecorder()
+	req.SetPathValue("id", badID)
 	handleSessionDetails(w, req)
 	resp := w.Result()
 	if resp.StatusCode != http.StatusBadRequest {
@@ -159,6 +162,7 @@ func TestHandleSessionDetails_UnknownID(t *testing.T) {
 	url := fmt.Sprintf("/session/%s", unknownID)
 	req := newRequestWithSessionID(http.MethodGet, url, unknownID, nil)
 	w := httptest.NewRecorder()
+	req.SetPathValue("id", unknownID)
 	handleSessionDetails(w, req)
 	resp := w.Result()
 	if resp.StatusCode != http.StatusNotFound {
