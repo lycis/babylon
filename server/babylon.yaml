@@ -6,3 +6,7 @@ drivers:
   exampleJavaDriver: 
     callback: http://localhost:8082
     secret: someTestSecret
+actors:
+  restActor:
+    callback: http://localhost:8083
+    secret: aRestActor
