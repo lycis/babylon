@@ -40,7 +40,7 @@ func findDriverByType(t string) *DriverInfo {
 }
 
 type DriverRegisterRequest struct {
-	Name     string `json:"driver"`
+	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Callback string `json:"callback"`
 	Secret   string `json:"secret"`
@@ -194,7 +194,7 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sinfo.Context.appendLog("system", fmt.Sprintf("Executing action '%s' on driver '%s'.", testReq.Action, driver.Name))
+	sinfo.Context.appendLog(fmt.Sprintf("system::driver::%s", driver.Name), fmt.Sprintf("Executing action '%s'.", testReq.Action))
 
 	// Forward the request to the BookingServiceDriver service.
 	driverURL := fmt.Sprintf("%sdriver/%s/execute", driver.Callback, driver.Name)
@@ -224,13 +224,13 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Success {
-		sinfo.Context.appendLog("system", "Driver action: SUCCESS")
+		sinfo.Context.appendLog(fmt.Sprintf("system::driver::%s", driver.Name), "Driver action: SUCCESS")
 	} else {
-		sinfo.Context.appendLog("system", "Driver action: FAILED")
+		sinfo.Context.appendLog(fmt.Sprintf("system::driver::%s", driver.Name), "Driver action: FAILED")
 	}
 
 	if len(result.Message) > 0 {
-		sinfo.Context.appendLog("message", result.Message)
+		sinfo.Context.appendLog(fmt.Sprintf("message::driver::%s", driver.Name), result.Message)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

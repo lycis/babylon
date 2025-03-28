@@ -1,7 +1,9 @@
 package at.deder.babylon.extension;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -9,16 +11,16 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class BabylonExtensionServer extends AbstractVerticle {
-  private final String serverHostName;
-  private final int serverPort;
+public class BabylonExtensionServer extends AbstractVerticle {
+  private String serverHostName;
+  private int serverPort;
   private final List<Extension> extensions = new ArrayList<>();
   private int port = 8888;
   private static final Logger LOGGER = LogManager.getLogger();
 
-  public BabylonExtensionServer(String serverHostName, int port) {
-    this.serverHostName = serverHostName;
-    this.serverPort = port;
+  private BabylonExtensionServer() {
+    this.serverHostName = "localhost";
+    this.serverPort = 8080;
   }
 
   @Override
@@ -49,18 +51,20 @@ public abstract class BabylonExtensionServer extends AbstractVerticle {
       });
 
     updateExtensionServer();
-    registerWithRemoteServer();
   }
 
   private void updateExtensionServer() {
     extensions.forEach(ext ->ext.setExtensionServer(this));
   }
 
-  private void registerWithRemoteServer() {
-    extensions.stream().filter(Extension::connectOnStartupEnabled).forEach(ext -> ext.registerRemote(vertx));
+  public BabylonExtensionServer registerWithRemoteServer(String serverHostName, int serverPort) {
+    this.serverHostName = serverHostName;
+    this.serverPort = serverPort;
+    extensions.forEach(ext -> ext.registerRemote(vertx));
+    return this;
   }
 
-  public void addExtension(Extension ext) {
+  private void addExtension(Extension ext) {
     extensions.add(ext);
   }
 
@@ -68,11 +72,32 @@ public abstract class BabylonExtensionServer extends AbstractVerticle {
     return port;
   }
 
-  public void setPort(int port) {
+  public BabylonExtensionServer setPort(int port) {
     this.port = port;
+    return this;
   }
 
   public String getHostName() {
     return "localhost";
+  }
+
+  public static BabylonExtensionServer forDriver(ExecutableExtension implementation) {
+    var server = new BabylonExtensionServer();
+    server.addExtension(new ExtensionExecutor(ExtensionType.DRIVER, implementation));
+    return server;
+  }
+
+  public static BabylonExtensionServer forActor(ExecutableExtension implementation) {
+    var server = new BabylonExtensionServer();
+    server.addExtension(new ExtensionExecutor(ExtensionType.ACTOR, implementation));
+    return server;
+  }
+
+  public void run() {
+    Vertx vertx = Vertx.vertx();
+
+    vertx.deployVerticle(this, new DeploymentOptions()
+      .setWorkerPoolSize(10)
+      .setWorkerPoolName("server"));
   }
 }

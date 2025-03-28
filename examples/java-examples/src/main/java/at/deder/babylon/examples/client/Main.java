@@ -2,7 +2,6 @@ package at.deder.babylon.examples.client;
 
 import at.deder.babylon.client.BabylonClient;
 import at.deder.babylon.client.Session;
-import at.deder.babylon.client.SessionLogMessage;
 
 public class Main {
     public static void main(String... args) {

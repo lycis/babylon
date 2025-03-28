@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/spf13/viper"
 )
 
@@ -73,6 +74,10 @@ func registerActor(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if !strings.HasSuffix(req.Callback, "/") {
+			req.Callback += "/"
+		}
+
 		actors.actors[req.Name] = Actor(req)
 		logger.With("name", req.Name, "type", req.Type, "callback", req.Callback).Info("New actor registered.")
 		return
@@ -94,6 +99,7 @@ type ActorExecutionRequest struct {
 	ActorType  string         `json:"type"`
 	Action     string         `json:"action"`
 	Parameters map[string]any `json:"parameters"`
+	Session    string         `json:"session"`
 }
 
 type ActorExecutionResult struct {
@@ -114,7 +120,22 @@ func executeActor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.With("type", req.ActorType, "action", req.Action).Info("Actor execution request received.")
+	if len(req.Session) < 1 || req.Session == "" {
+		http.Error(w, "missing session id", http.StatusBadRequest)
+	}
+
+	uuid, err := uuid.Parse(req.Session)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("malformed session id: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	sinfo := session_register.getSession(uuid)
+	if sinfo == nil {
+		http.Error(w, "unknown session id", http.StatusBadRequest)
+	}
+
+	logger.With("session", req.Session, "type", req.ActorType, "action", req.Action).Info("Actor execution request received.")
 
 	actorURL := fmt.Sprintf("%sactor/%s/execute", actor.Callback, actor.Name)
 	reqJSON, err := json.Marshal(req)
@@ -122,6 +143,8 @@ func executeActor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	sinfo.Context.appendLog(fmt.Sprintf("system::actor::%s", actor.Name), fmt.Sprintf("Executing action '%s'.", req.Action))
 
 	resp, err := http.Post(actorURL, "application/json", bytes.NewBuffer(reqJSON))
 	if err != nil {
@@ -140,6 +163,16 @@ func executeActor(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &result); err != nil {
 		http.Error(w, err.Error(), http.StatusFailedDependency)
 		return
+	}
+
+	if result.Success {
+		sinfo.Context.appendLog(fmt.Sprintf("system::actor::%s", actor.Name), "Actor action: SUCCESS")
+	} else {
+		sinfo.Context.appendLog(fmt.Sprintf("system::actor::%s", actor.Name), "Actor action: FAILED")
+	}
+
+	if len(result.Message) > 0 {
+		sinfo.Context.appendLog(fmt.Sprintf("message::actor::%s", actor.Name), result.Message)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

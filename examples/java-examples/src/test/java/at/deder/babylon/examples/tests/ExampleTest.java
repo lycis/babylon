@@ -1,7 +1,6 @@
 package at.deder.babylon.examples.tests;
 
 import at.deder.babylon.client.BabylonClient;
-import at.deder.babylon.client.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +13,7 @@ public class ExampleTest {
 
     @BeforeAll
     public static void setupBabylon() {
-        babylon = BabylonClient.createFor("http://localhost:8080/");
+        babylon = BabylonClient.createFor("http://localhost:9090/");
     }
 
     @BeforeEach

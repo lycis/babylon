@@ -1,4 +1,4 @@
-package at.deder.babylon.extension.driver;
+package at.deder.babylon.extension;
 
 import io.vertx.core.json.JsonObject;
 

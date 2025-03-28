@@ -1,12 +1,12 @@
 hostname: localhost
-port: 8080
+port: 9090
 security:
   driverSelfManagement: true
 drivers:
   exampleJavaDriver: 
-    callback: http://localhost:8082
+    callback: http://localhost:9092
     secret: someTestSecret
 actors:
-  restActor:
-    callback: http://localhost:8083
-    secret: aRestActor
+  exampleactor:
+    callback: http://localhost:9093
+    secret: exampleSecretActor

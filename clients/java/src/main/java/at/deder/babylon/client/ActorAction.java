@@ -3,13 +3,13 @@ package at.deder.babylon.client;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DriverAction {
+public class ActorAction {
     private final Map<String, Object> parameters = new HashMap<String, Object>();
     private final String driverType;
     private final BabylonClient client;
     private String action;
 
-    public DriverAction(BabylonClient client, String driverType) {
+    public ActorAction(BabylonClient client, String driverType) {
         this.client = client;
         this.driverType = driverType;
     }
@@ -27,7 +27,7 @@ public class DriverAction {
         return action;
     }
 
-    public DriverAction action(String action) {
+    public ActorAction action(String action) {
         this.action = action;
         return this;
     }
@@ -36,12 +36,12 @@ public class DriverAction {
         return parameters;
     }
 
-    public DriverAction parameter(String name, Object value) {
+    public ActorAction parameter(String name, Object value) {
         parameters.put(name, value);
         return this;
     }
 
     public ExecutionResult execute() {
-        return client.api().executeDriverAction(this);
+        return client.api().executeActorAction(this);
     }
 }

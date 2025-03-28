@@ -1,7 +1,5 @@
 package at.deder.babylon.client;
 
-import at.deder.babylon.extension.driver.Driver;
-import at.deder.babylon.extension.driver.ExecutionResult;
 import feign.Feign;
 import feign.jackson.JacksonDecoder;
 import feign.jackson.JacksonEncoder;
@@ -45,8 +43,16 @@ public class BabylonClient {
         return api;
     }
 
+    public synchronized void reuseSession(String sessionId) {
+        currentSession = api.sessionInfo(sessionId);
+    }
+
     public synchronized Session refreshSessionInfo() {
         currentSession = api.sessionInfo(session().uuid());
         return currentSession;
+    }
+
+    public ActorAction actor(String name) {
+        return new ActorAction(this, name);
     }
 }

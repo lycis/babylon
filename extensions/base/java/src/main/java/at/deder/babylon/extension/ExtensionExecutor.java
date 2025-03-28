@@ -1,7 +1,7 @@
-package at.deder.babylon.extension.driver;
+package at.deder.babylon.extension;
 
-import at.deder.babylon.extension.BabylonExtensionServer;
-import at.deder.babylon.extension.Extension;
+import at.deder.babylon.client.BabylonClient;
+import at.deder.babylon.client.Session;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpResponseExpectation;
 import io.vertx.core.json.JsonObject;
@@ -9,6 +9,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.impl.BlockingHandlerDecorator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,45 +18,28 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public abstract class Driver implements Extension {
-  private String serverHostName;
-  private int serverPort;
-  private static Logger LOGGER = LogManager.getLogger();
-  private int retryCounter = 0;
-  private BabylonExtensionServer extensionServer;
+public class ExtensionExecutor implements Extension {
+  private final ExtensionType type;
+  private final ExecutableExtension implementation;
+  String serverHostName;
+  int serverPort;
+  static final Logger LOGGER = LogManager.getLogger();
+  int retryCounter;
+  BabylonExtensionServer extensionServer;
 
-  /**
-     * Execute the given action with parameters.
-     * @param action The driver action.
-     * @param parameters Parameters for the action.
-     * @return An ExecutionResult containing the outcome.
-     */
-    public abstract ExecutionResult execute(String action, Map<String, Object> parameters);
-
-    /**
-     * Returns the unique name of this driver.
-     */
-    public abstract String getName();
-
-    /**
-     * Returns the type of driver (e.g. "EBanking", "Logistics Application", etc.).
-     */
-    public abstract String getType();
-
-  /**
-   * Returns a shared secret between driver and server that may be to connect depending on the server config.
-   */
-    public abstract String getSecret();
+  public ExtensionExecutor(ExtensionType type, ExecutableExtension implementation) {
+    this.type = type;
+    this.implementation = implementation;
+  }
 
   public void setupEndpoint(Router router) {
     Logger logger = LogManager.getLogger();
-    router.post("/driver/"+getName().toLowerCase()+"/execute").handler(BodyHandler.create());
-    router.post("/driver/"+getName().toLowerCase()+"/execute").handler(this::handleExecutionRequest);
+    router.post("/"+ lowerCaseCategory() +"/"+implementation.getName().toLowerCase()+"/execute").handler(BodyHandler.create());
+    router.post("/"+ lowerCaseCategory() +"/"+ implementation.getName().toLowerCase()+"/execute").handler(new BlockingHandlerDecorator(this::handleExecutionRequest, true));
 
-    // server side registration endpoing
-    router.post("/driver/"+getName().toLowerCase()+"/serverConnect").handler(BodyHandler.create());
-    router.post("/driver/"+getName().toLowerCase()+"/serverConnect").handler(this::handleServerConnectRequest);
-
+    // server side registration endpoint
+    router.post("/"+ lowerCaseCategory() +"/"+ implementation.getName().toLowerCase()+"/serverConnect").handler(BodyHandler.create());
+    router.post("/"+ lowerCaseCategory() +"/"+ implementation.getName().toLowerCase()+"/serverConnect").handler(new BlockingHandlerDecorator(this::handleServerConnectRequest, true));
   }
 
   private void handleExecutionRequest(RoutingContext context) {
@@ -89,15 +73,21 @@ public abstract class Driver implements Extension {
     String action = data.getString("action");
     Map<String, Object> parameters = null;
 
-    logger.info("Received driver execution request. source=\"{} ({})\" session=\"{}\" action=\"{}\"", hostAddress,hostName,session,action);
+    logger.info("Received {} execution request. source=\"{} ({})\" session=\"{}\" action=\"{}\"", lowerCaseCategory(), hostAddress, hostName, session, action);
 
     if(data.containsKey("parameters")) {
       parameters = data.getJsonObject("parameters").getMap();
     }
 
-    ExecutionResult result = execute(action, parameters);
+    ExecutionResult result = implementation.execute(action, parameters, createBabylonClient(session));
 
     context.json(result.toJson());
+  }
+
+  private BabylonClient createBabylonClient(String sessionId) {
+    var client = BabylonClient.createFor("http://" + serverHostName + ":" + serverPort + "/");
+    client.reuseSession(sessionId);
+    return client;
   }
 
   private void handleServerConnectRequest(RoutingContext context) {
@@ -137,32 +127,32 @@ public abstract class Driver implements Extension {
 
     // (String driver, String type, String callback
     var registrationData = new JsonObject()
-      .put("driver", getName())
-      .put("type", getType())
-      .put("secret", getSecret())
+      .put("name", implementation.getName())
+      .put("type", implementation.getType())
+      .put("secret", implementation.getSecret())
       .put("callback", "http://"+extensionServer.getHostName()+":"+extensionServer.getPort()+"/");
     context.response().setStatusCode(200);
     context.json(registrationData);
-    logger.info("Accepted server side driver registration");
+    logger.info("Accepted server side "+ lowerCaseCategory() +" registration");
   }
 
   @Override
   public void registerRemote(Vertx vertx) {
     var request = WebClient.create(vertx)
-      .post(serverPort, serverHostName, "/driver/")
+      .post(serverPort, serverHostName, "/"+ lowerCaseCategory() +"/")
       .putHeader("Content-Type", "application/json");
 
     // (String driver, String type, String callback
     var registrationData = new JsonObject()
-      .put("driver", getName())
-      .put("type", getType());
+      .put(lowerCaseCategory(), implementation.getName())
+      .put("type", implementation.getType());
 
     request.sendJsonObject(registrationData)
       .expecting(HttpResponseExpectation.SC_OK)
-      .onSuccess(result -> LOGGER.info("Driver registered on remote server. remote=\"{}:{}\"", serverHostName, serverPort))
+      .onSuccess(result -> LOGGER.info("{} registered on remote server. remote=\"{}:{}\"", lowerCaseCategory(), serverHostName, serverPort))
       .onFailure(e -> {
         if(retryCounter < 10) {
-          LOGGER.info("Failed to register driver. Retrying. error=\"{}\"", e.getMessage());
+          LOGGER.info("Failed to register "+ lowerCaseCategory() +". Retrying. error=\"{}\"", e.getMessage());
           try {
             TimeUnit.SECONDS.sleep(5);
           } catch (InterruptedException ex) {
@@ -171,10 +161,14 @@ public abstract class Driver implements Extension {
           retryCounter++;
           registerRemote(vertx);
         } else {
-          LOGGER.fatal("Failed to register driver. Retries used up. error=\"{}\"", e.getMessage());
-          throw new RuntimeException("Failed to register driver. Retries used up.");
+          LOGGER.fatal("Failed to register "+ lowerCaseCategory() +". Retries used up. error=\"{}\"", e.getMessage());
+          throw new RuntimeException("Failed to register "+ lowerCaseCategory() +". Retries used up.");
         }
       });
+  }
+
+  private String lowerCaseCategory() {
+    return type.name().toLowerCase();
   }
 
   @Override
@@ -184,17 +178,9 @@ public abstract class Driver implements Extension {
     this.serverPort = serverPort;
   }
 
-  /**
-   * If this returns true, then the driver will initiate a connection with the server. Return false here
-   * if you are using server-side driver registration
-   * @return <b>true</b> if the driver should self-register with the server
-   */
-  public boolean connectOnStartupEnabled() {
-    return true;
-  }
-
+  @Override
   public void setExtensionServer(BabylonExtensionServer extensionServer) {
     this.extensionServer = extensionServer;
   }
-}
 
+}

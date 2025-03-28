@@ -11,7 +11,5 @@ public interface Extension {
 
   void setRemoteServer(String serverHostName, int serverPort);
 
-  boolean connectOnStartupEnabled();
-
   void setExtensionServer(BabylonExtensionServer extensionServer);
 }
