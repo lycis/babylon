@@ -1,7 +1,6 @@
 package at.deder.babylon.extension;
 
 import at.deder.babylon.client.BabylonClient;
-import at.deder.babylon.client.Session;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpResponseExpectation;
 import io.vertx.core.json.JsonObject;
@@ -18,7 +17,7 @@ import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class ExtensionExecutor implements Extension {
+public class Executor extends ExtensionBase implements Extension {
   private final ExtensionType type;
   private final ExecutableExtension implementation;
   String serverHostName;
@@ -27,19 +26,19 @@ public class ExtensionExecutor implements Extension {
   int retryCounter;
   BabylonExtensionServer extensionServer;
 
-  public ExtensionExecutor(ExtensionType type, ExecutableExtension implementation) {
+  public Executor(ExtensionType type, ExecutableExtension implementation) {
     this.type = type;
     this.implementation = implementation;
   }
 
   public void setupEndpoint(Router router) {
     Logger logger = LogManager.getLogger();
-    router.post("/"+ lowerCaseCategory() +"/"+implementation.getName().toLowerCase()+"/execute").handler(BodyHandler.create());
-    router.post("/"+ lowerCaseCategory() +"/"+ implementation.getName().toLowerCase()+"/execute").handler(new BlockingHandlerDecorator(this::handleExecutionRequest, true));
+    router.post("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/execute").handler(BodyHandler.create());
+    router.post("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/execute").handler(new BlockingHandlerDecorator(this::handleExecutionRequest, true));
 
     // server side registration endpoint
-    router.post("/"+ lowerCaseCategory() +"/"+ implementation.getName().toLowerCase()+"/serverConnect").handler(BodyHandler.create());
-    router.post("/"+ lowerCaseCategory() +"/"+ implementation.getName().toLowerCase()+"/serverConnect").handler(new BlockingHandlerDecorator(this::handleServerConnectRequest, true));
+    router.post("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/serverConnect").handler(BodyHandler.create());
+    router.post("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/serverConnect").handler(new BlockingHandlerDecorator(this::handleServerConnectRequest, true));
   }
 
   private void handleExecutionRequest(RoutingContext context) {
@@ -79,7 +78,7 @@ public class ExtensionExecutor implements Extension {
       parameters = data.getJsonObject("parameters").getMap();
     }
 
-    ExecutionResult result = implementation.execute(action, parameters, createBabylonClient(session));
+    ExecutionResult result = getImplementation().execute(action, parameters, createBabylonClient(session));
 
     context.json(result.toJson());
   }
@@ -127,13 +126,17 @@ public class ExtensionExecutor implements Extension {
 
     // (String driver, String type, String callback
     var registrationData = new JsonObject()
-      .put("name", implementation.getName())
-      .put("type", implementation.getType())
-      .put("secret", implementation.getSecret())
+      .put("name", getImplementation().getName())
+      .put("type", getImplementation().getType())
+      .put("secret", getImplementation().getSecret())
       .put("callback", "http://"+extensionServer.getHostName()+":"+extensionServer.getPort()+"/");
     context.response().setStatusCode(200);
     context.json(registrationData);
     logger.info("Accepted server side "+ lowerCaseCategory() +" registration");
+  }
+
+  private ExecutableExtension getImplementation() {
+    return implementation;
   }
 
   @Override
@@ -144,8 +147,8 @@ public class ExtensionExecutor implements Extension {
 
     // (String driver, String type, String callback
     var registrationData = new JsonObject()
-      .put(lowerCaseCategory(), implementation.getName())
-      .put("type", implementation.getType());
+      .put(lowerCaseCategory(), getImplementation().getName())
+      .put("type", getImplementation().getType());
 
     request.sendJsonObject(registrationData)
       .expecting(HttpResponseExpectation.SC_OK)

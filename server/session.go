@@ -30,6 +30,7 @@ func (r *sessionRegister) sessionCleanup() {
 		for _, sinfo := range r.activeSessions {
 			if sinfo.lastKeepalive.Before(now.Add(-5 * time.Minute)) {
 				logger.With("uuid", sinfo.UUID.String()).Info("Cleaned inactive session.")
+				sinfo.Context.appendLog("system::warning", "Session timed out. Missing closing of session or session got stuck?")
 				delete(r.activeSessions, sinfo.UUID)
 			}
 		}
@@ -46,6 +47,7 @@ func (r *sessionRegister) getSession(id uuid.UUID) *SessionInfo {
 func (r *sessionRegister) removeSession(id uuid.UUID) {
 	r.sessionMutex.Lock()
 	defer r.sessionMutex.Unlock()
+	sendSessionReport(r.activeSessions[id])
 	delete(r.activeSessions, id)
 }
 
@@ -58,18 +60,21 @@ type SessionInfo struct {
 }
 
 type SessionContext struct {
-	mutex sync.Mutex          `json:"-"`
-	Log   []SessionLogMessage `json:"log"`
+	sessionInfo *SessionInfo        `json:"-"`
+	mutex       sync.Mutex          `json:"-"`
+	Log         []SessionLogMessage `json:"log"`
 }
 
 func (c *SessionContext) appendLog(msgtype string, msg string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.Log = append(c.Log, SessionLogMessage{
+	msgObj := SessionLogMessage{
 		TimeStamp:   time.Now(),
 		MessageType: msgtype,
 		Message:     msg,
-	})
+	}
+	c.Log = append(c.Log, msgObj)
+	go sendLiveLogMessage(c.sessionInfo, msgObj)
 }
 
 type SessionLogMessage struct {
@@ -102,9 +107,11 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	sinfo := SessionInfo{
 		UUID:          id,
 		lastKeepalive: time.Now(),
-		Context: SessionContext{
-			Log: make([]SessionLogMessage, 0),
-		},
+	}
+
+	sinfo.Context = SessionContext{
+		sessionInfo: &sinfo,
+		Log:         make([]SessionLogMessage, 0),
 	}
 
 	session_register.addSession(&sinfo)

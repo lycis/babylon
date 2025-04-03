@@ -83,15 +83,22 @@ public class BabylonExtensionServer extends AbstractVerticle {
 
   public static BabylonExtensionServer forDriver(ExecutableExtension implementation) {
     var server = new BabylonExtensionServer();
-    server.addExtension(new ExtensionExecutor(ExtensionType.DRIVER, implementation));
+    server.addExtension(new Executor(ExtensionType.DRIVER, implementation));
     return server;
   }
 
   public static BabylonExtensionServer forActor(ExecutableExtension implementation) {
     var server = new BabylonExtensionServer();
-    server.addExtension(new ExtensionExecutor(ExtensionType.ACTOR, implementation));
+    server.addExtension(new Executor(ExtensionType.ACTOR, implementation));
     return server;
   }
+
+  public static BabylonExtensionServer forReporter(ReporterExtension implementation) {
+    var server = new BabylonExtensionServer();
+    server.addExtension(new Reporter(implementation));
+    return server;
+  }
+
 
   public void run() {
     Vertx vertx = Vertx.vertx();

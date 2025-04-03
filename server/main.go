@@ -22,7 +22,7 @@ func main() {
 
 	// Driver functions
 	http.HandleFunc("/driver/execute", runDriver)
-	if viper.GetBool("driver.driverSelfManagement") {
+	if viper.GetBool("security.driver.selfManagement") {
 		http.HandleFunc("/driver/", registerDriver)
 	} else {
 		logger.Info("Driver self-management disabled.")
@@ -30,10 +30,15 @@ func main() {
 
 	// actor functions
 	http.HandleFunc("/actor/execute", executeActor)
-	if viper.GetBool("driver.actorSelfManagement") {
+	if viper.GetBool("security.actor.selfManagement") {
 		http.HandleFunc("/actor/", registerActor)
 	} else {
 		logger.Info("Actor self-management disabled.")
+	}
+
+	// reporter functions
+	if viper.GetBool("security.reporter.selfManagement") {
+		http.HandleFunc("/reporter/", registerReporter)
 	}
 
 	// session management
@@ -51,6 +56,13 @@ func main() {
 		preconfigActors := viper.GetStringMap("actors")
 		for a, _ := range preconfigActors {
 			go setupPreconfiguredActor(a)
+		}
+	}
+
+	if viper.IsSet("reporter") {
+		preconfigReporters := viper.GetStringMap("reporter")
+		for a, _ := range preconfigReporters {
+			go setupPreconfiguredReporter(a)
 		}
 	}
 

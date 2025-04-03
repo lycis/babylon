@@ -1,7 +1,12 @@
 hostname: localhost
 port: 9090
 security:
-  driverSelfManagement: true
+  driver:
+    selfManagement: true
+  actor:
+    selfManagement: true
+  reporter:
+    selfManagement: true
 drivers:
   exampleJavaDriver: 
     callback: http://localhost:9092
@@ -10,3 +15,12 @@ actors:
   exampleactor:
     callback: http://localhost:9093
     secret: exampleSecretActor
+reporter:
+  FileReporter:
+    callback: http://localhost:9094
+    secret: fileReporterSecret
+    live: false
+  LiveDashboardReporter:
+    callback: http://localhost:9095
+    secret: liveDashboardSecret
+    live: true
