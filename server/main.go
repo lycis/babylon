@@ -20,20 +20,20 @@ func main() {
 	// update configuration
 	readConfig()
 
-	// Driver functions
-	http.HandleFunc("/driver/execute", runDriver)
-	if viper.GetBool("security.driver.selfManagement") {
-		http.HandleFunc("/driver/", registerDriver)
-	} else {
-		logger.Info("Driver self-management disabled.")
-	}
-
-	// actor functions
-	http.HandleFunc("/actor/execute", executeActor)
+	// Actor functions
+	http.HandleFunc("/actor/execute", runActor)
 	if viper.GetBool("security.actor.selfManagement") {
 		http.HandleFunc("/actor/", registerActor)
 	} else {
 		logger.Info("Actor self-management disabled.")
+	}
+
+	// driver functions
+	http.HandleFunc("/driver/execute", executeDriver)
+	if viper.GetBool("security.driver.selfManagement") {
+		http.HandleFunc("/driver/", registerDriver)
+	} else {
+		logger.Info("Driver self-management disabled.")
 	}
 
 	// reporter functions
@@ -45,17 +45,17 @@ func main() {
 	http.HandleFunc("/session", handleSession)
 	http.HandleFunc("/session/{id}", handleSessionDetails)
 
-	if viper.IsSet("drivers") {
-		preconfigDrivers := viper.GetStringMap("drivers")
-		for driver, _ := range preconfigDrivers {
-			go setupPreconfiguredDriver(driver)
+	if viper.IsSet("actors") {
+		preconfigActors := viper.GetStringMap("actors")
+		for actor, _ := range preconfigActors {
+			go setupPreconfiguredActor(actor)
 		}
 	}
 
-	if viper.IsSet("actors") {
-		preconfigActors := viper.GetStringMap("actors")
-		for a, _ := range preconfigActors {
-			go setupPreconfiguredActor(a)
+	if viper.IsSet("drivers") {
+		preconfigDrivers := viper.GetStringMap("drivers")
+		for a, _ := range preconfigDrivers {
+			go setupPreconfiguredDriver(a)
 		}
 	}
 

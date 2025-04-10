@@ -13,27 +13,40 @@ import (
 	"github.com/spf13/viper"
 )
 
-type DriverInfo struct {
-	Name     string
-	Type     string
-	Callback string
-	Secret   string
+type Driver struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Callback string `json:"callback"`
+	Secret   string `json:"secret"`
 }
 
-// list of all known / registered drivers with their callback
-var knownDrivers map[string]DriverInfo
-var knownDriversMutex sync.Mutex
+type DriverRegister struct {
+	mutex   sync.Mutex
+	drivers map[string]Driver
+}
+
+var drivers DriverRegister
 
 func init() {
-	knownDrivers = make(map[string]DriverInfo)
+	drivers = DriverRegister{
+		drivers: make(map[string]Driver),
+	}
 }
 
-func findDriverByType(t string) *DriverInfo {
-	knownDriversMutex.Lock()
-	defer knownDriversMutex.Unlock()
-	for _, di := range knownDrivers {
-		if di.Type == t {
-			return &di
+func (r *DriverRegister) AddDriver(a Driver) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.drivers[a.Name] = a
+	logger.With("name", a.Name, "type", a.Type, "callback", a.Callback).Info("New driver registered.")
+}
+
+func (r *DriverRegister) GetDriverByType(t string) *Driver {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, a := range r.drivers {
+		if a.Type == t {
+			return &a
 		}
 	}
 	return nil
@@ -47,116 +60,46 @@ type DriverRegisterRequest struct {
 }
 
 type DriverDeleteRequest struct {
-	Name string `json:"driver"`
+	Name string `json:"name"`
 }
 
 func registerDriver(w http.ResponseWriter, r *http.Request) {
-	knownDriversMutex.Lock()
-	defer knownDriversMutex.Unlock()
+	drivers.mutex.Lock()
+	defer drivers.mutex.Unlock()
 
 	if r.Method == http.MethodPost {
-		var registerReq DriverRegisterRequest
-		if err := json.NewDecoder(r.Body).Decode(&registerReq); err != nil {
+		var req DriverRegisterRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if registerReq.Callback == "" || len(registerReq.Callback) < 1 {
-			registerReq.Callback = fmt.Sprintf("http://%s:8082/", strings.Split(r.RemoteAddr, ":")[0])
+		if !strings.HasSuffix(req.Callback, "/") {
+			req.Callback += "/"
 		}
 
-		knownDrivers[registerReq.Name] = DriverInfo(registerReq)
-
-		logger.With("name", registerReq.Name, "type", registerReq.Type, "callback", registerReq.Callback).Info("New driver registered.")
+		drivers.drivers[req.Name] = Driver(req)
+		logger.With("name", req.Name, "type", req.Type, "callback", req.Callback).Info("New driver registered.")
 		return
 	} else if r.Method == http.MethodDelete {
-		var deleteReq DriverDeleteRequest
-		if err := json.NewDecoder(r.Body).Decode(&deleteReq); err != nil {
+		var req DriverDeleteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		delete(knownDrivers, deleteReq.Name)
-		logger.With("name", deleteReq.Name).Info("Driver delted.")
+		delete(drivers.drivers, req.Name)
+		logger.With("name", req.Name).Info("Driver deleted.")
 		return
 	}
 
 	http.Error(w, "invalid http method", http.StatusBadRequest)
 }
 
-type serverRegistrationRequest struct {
-	Callback string `json:"callback"`
-}
-
-func setupPreconfiguredDriver(name string) {
-	knownDriversMutex.Lock()
-	defer knownDriversMutex.Unlock()
-
-	if !viper.IsSet(fmt.Sprintf("drivers.%s.callback", name)) {
-		logger.With("driver", name).Error("Preconfigured driver is missing callback.")
-		return
-	}
-
-	callback := viper.GetString(fmt.Sprintf("drivers.%s.callback", name))
-	secret := viper.GetString(fmt.Sprintf("drivers.%s.secret", name))
-	if !viper.IsSet(fmt.Sprintf("drivers.%s.secret", name)) {
-		secret = ""
-	}
-
-	if !strings.HasSuffix(callback, "/") {
-		callback += "/"
-	}
-
-	driverURL := fmt.Sprintf("%sdriver/%s/serverConnect", callback, name)
-	req := serverRegistrationRequest{
-		Callback: fmt.Sprintf("http://%s:%d/", viper.GetString("hostname"), viper.GetInt("port")),
-	}
-	reqJSON, err := json.Marshal(req)
-	if err != nil {
-		logger.With("driverName", name, "error", err).Error("Failed to marshal server side registration request.")
-		return
-	}
-
-	resp, err := http.Post(driverURL, "application/json", bytes.NewBuffer(reqJSON))
-	if err != nil {
-		logger.With("driverName", name, "error", err).Error("Failed to attach server to driver.")
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		logger.With("driverName", name, "statusCode", resp.StatusCode).Error("Failed to attach server to driver. Check driver logs.")
-		return
-	}
-
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.With("driverName", name, "error", err).Error("Failed reading driver response on server side registration.")
-		return
-	}
-
-	var result DriverRegisterRequest
-	if err := json.Unmarshal(body, &result); err != nil {
-		logger.With("driverName", name, "error", err).Error("Failed parsing driver response on server side registration.")
-		return
-	}
-
-	if result.Secret != secret {
-		logger.With("driverName", name).Error("Server side driver registration aborted. Invalid secret from driver.")
-		return
-	}
-
-	knownDrivers[name] = DriverInfo(result)
-	logger.With("driverName", name).Info("Server side driver registered.")
-}
-
-// DriverExecutionRequest sent by the test script.
 type DriverExecutionRequest struct {
-	SessionUUID string         `json:"session"`
-	DriverType  string         `json:"type"`
-	Action      string         `json:"action"`
-	Parameters  map[string]any `json:"parameters"`
+	DriverType string         `json:"type"`
+	Action     string         `json:"action"`
+	Parameters map[string]any `json:"parameters"`
+	Session    string         `json:"session"`
 }
 
 type DriverExecutionResult struct {
@@ -164,20 +107,24 @@ type DriverExecutionResult struct {
 	Message string `json:"message"`
 }
 
-func runDriver(w http.ResponseWriter, r *http.Request) {
-	var testReq DriverExecutionRequest
-	if err := json.NewDecoder(r.Body).Decode(&testReq); err != nil {
+func executeDriver(w http.ResponseWriter, r *http.Request) {
+	var req DriverExecutionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if len(testReq.SessionUUID) < 1 || testReq.SessionUUID == "" {
+	driver := drivers.GetDriverByType(req.DriverType)
+	if driver == nil {
+		http.Error(w, "no supported driver", http.StatusBadGateway)
+		return
+	}
+
+	if len(req.Session) < 1 || req.Session == "" {
 		http.Error(w, "missing session id", http.StatusBadRequest)
 	}
 
-	logger.With("session", testReq.SessionUUID, "type", testReq.DriverType, "action", testReq.Action).Info("Driver execution request received.")
-
-	uuid, err := uuid.Parse(testReq.SessionUUID)
+	uuid, err := uuid.Parse(req.Session)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("malformed session id: %s", err.Error()), http.StatusBadRequest)
 		return
@@ -188,21 +135,16 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unknown session id", http.StatusBadRequest)
 	}
 
-	driver := findDriverByType(testReq.DriverType)
-	if driver == nil {
-		http.Error(w, "no supported driver", http.StatusBadGateway)
-		return
-	}
+	logger.With("session", req.Session, "type", req.DriverType, "action", req.Action).Info("Driver execution request received.")
 
-	sinfo.Context.appendLog(fmt.Sprintf("system::driver::%s", driver.Name), fmt.Sprintf("Executing action '%s'.", testReq.Action))
-
-	// Forward the request to the BookingServiceDriver service.
 	driverURL := fmt.Sprintf("%sdriver/%s/execute", driver.Callback, driver.Name)
-	reqJSON, err := json.Marshal(testReq)
+	reqJSON, err := json.Marshal(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	sinfo.Context.appendLog(fmt.Sprintf("system::driver::%s", driver.Name), fmt.Sprintf("Executing action '%s'.", req.Action))
 
 	resp, err := http.Post(driverURL, "application/json", bytes.NewBuffer(reqJSON))
 	if err != nil {
@@ -235,4 +177,67 @@ func runDriver(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
+}
+
+func setupPreconfiguredDriver(name string) {
+	drivers.mutex.Lock()
+	defer drivers.mutex.Unlock()
+
+	if !viper.IsSet(fmt.Sprintf("drivers.%s.callback", name)) {
+		logger.With("driver", name).Error("Preconfigured driver is missing callback.")
+		return
+	}
+
+	callback := viper.GetString(fmt.Sprintf("drivers.%s.callback", name))
+	secret := viper.GetString(fmt.Sprintf("drivers.%s.secret", name))
+	if !viper.IsSet(fmt.Sprintf("drivers.%s.secret", name)) {
+		secret = ""
+	}
+
+	if !strings.HasSuffix(callback, "/") {
+		callback += "/"
+	}
+
+	driverURL := fmt.Sprintf("%sdriver/%s/serverConnect", callback, name)
+	req := DriverRegisterRequest{
+		Callback: fmt.Sprintf("http://%s:%d/", viper.GetString("hostname"), viper.GetInt("port")),
+	}
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		logger.With("driver", name, "error", err).Error("Failed to marshal server side registration request.")
+		return
+	}
+
+	resp, err := http.Post(driverURL, "application/json", bytes.NewBuffer(reqJSON))
+	if err != nil {
+		logger.With("driver", name, "error", err).Error("Failed to attach server to driver.")
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		logger.With("driver", name, "statusCode", resp.StatusCode).Error("Failed to attach server to driver. Check driver logs.")
+		return
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.With("driver", name, "error", err).Error("Failed reading driver response on server side registration.")
+		return
+	}
+
+	var result DriverRegisterRequest
+	if err := json.Unmarshal(body, &result); err != nil {
+		logger.With("driver", name, "error", err).Error("Failed parsing driver response on server side registration.")
+		return
+	}
+
+	if result.Secret != secret {
+		logger.With("driver", name).Error("Server side driver registration aborted. Invalid secret from driver.")
+		return
+	}
+
+	drivers.drivers[name] = Driver(result)
+	logger.With("driver", name).Info("Server side driver registered.")
 }

@@ -81,15 +81,15 @@ public class BabylonExtensionServer extends AbstractVerticle {
     return "localhost";
   }
 
-  public static BabylonExtensionServer forDriver(ExecutableExtension implementation) {
-    var server = new BabylonExtensionServer();
-    server.addExtension(new Executor(ExtensionType.DRIVER, implementation));
-    return server;
-  }
-
   public static BabylonExtensionServer forActor(ExecutableExtension implementation) {
     var server = new BabylonExtensionServer();
     server.addExtension(new Executor(ExtensionType.ACTOR, implementation));
+    return server;
+  }
+
+  public static BabylonExtensionServer forDriver(ExecutableExtension implementation) {
+    var server = new BabylonExtensionServer();
+    server.addExtension(new Executor(ExtensionType.DRIVER, implementation));
     return server;
   }
 

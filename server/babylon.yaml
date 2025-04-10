@@ -7,14 +7,14 @@ security:
     selfManagement: true
   reporter:
     selfManagement: true
-drivers:
-  exampleJavaDriver: 
+actors:
+  exampleJavaActor: 
     callback: http://localhost:9092
     secret: someTestSecret
-actors:
-  exampleactor:
+drivers:
+  exampledriver:
     callback: http://localhost:9093
-    secret: exampleSecretActor
+    secret: exampleSecretDriver
 reporter:
   FileReporter:
     callback: http://localhost:9094

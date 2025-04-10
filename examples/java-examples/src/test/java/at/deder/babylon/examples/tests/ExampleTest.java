@@ -40,7 +40,7 @@ public class ExampleTest {
                 .parameter("foo", "bar")
                 .execute();
         assertThat(result.success()).isTrue();
-        assertThat(result.message()).isEqualTo("Executed action 'actionWithParameters' with parameters: {foo=bar}");
+        assertThat(result.message()).isEqualTo("action executed with parameters: {foo=bar}");
 
     }
 }
