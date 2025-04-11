@@ -1,26 +1,48 @@
+# hostname: localhost
+# port: 9090
+# security:
+#   driver:
+#     selfManagement: true
+#   actor:
+#     selfManagement: true
+#   reporter:
+#     selfManagement: true
+# actors:
+#   exampleJavaActor: 
+#     callback: http://localhost:9092
+#     secret: someTestSecret
+# drivers:
+#   exampledriver:
+#     callback: http://localhost:9093
+#     secret: exampleSecretDriver
+#   RestApi:
+#     callback: http://localhost:9088/
+#     secret: restSecret
+# reporter:
+#   FileReporter:
+#     callback: http://localhost:9094
+#     secret: fileReporterSecret
+#     live: false
+#   LiveDashboardReporter:
+#     callback: http://localhost:9095
+#     secret: liveDashboardSecret
+#     live: true
+
 hostname: localhost
 port: 9090
-security:
-  driver:
-    selfManagement: true
-  actor:
-    selfManagement: true
-  reporter:
-    selfManagement: true
 actors:
-  exampleJavaActor: 
-    callback: http://localhost:9092
-    secret: someTestSecret
+  odoo_user:
+    callback: http://localhost:9001
+    secret: simpleOdooUser
 drivers:
-  exampledriver:
-    callback: http://localhost:9093
-    secret: exampleSecretDriver
-reporter:
-  FileReporter:
-    callback: http://localhost:9094
-    secret: fileReporterSecret
-    live: false
-  LiveDashboardReporter:
-    callback: http://localhost:9095
-    secret: liveDashboardSecret
-    live: true
+  selenium:
+    callback: http://localhost:9089
+    secret: seleniumDriverSecret
+#  rest:
+#    callback: http://localhost:9088/
+#    secret: restSecret
+#reporter:
+#  FileReporter:
+#    callback: http://localhost:9094
+#    secret: fileReporterSecret
+#    live: false

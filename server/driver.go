@@ -40,6 +40,31 @@ func (r *DriverRegister) AddDriver(a Driver) {
 	logger.With("name", a.Name, "type", a.Type, "callback", a.Callback).Info("New driver registered.")
 }
 
+func (r *DriverRegister) informEndOfSessioNnid(id uuid.UUID) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for k, driver := range r.drivers {
+		logger.With("driver", k, "session", id.String()).Info("Informing driver of session end.")
+		driverURL := fmt.Sprintf("%sdriver/%s/session/%s", driver.Callback, driver.Name, id.String())
+		req, err := http.NewRequest(http.MethodDelete, driverURL, nil)
+		if err != nil {
+			logger.With("driver", k, "session", id.String(), "error", err.Error()).Error("Creating request to inform driver of session end failed.")
+			continue
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			logger.With("driver", k, "session", id.String(), "error", err.Error()).Error("Informing driver of session end failed.")
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			logger.With("driver", k, "session", id.String(), "statusCode", resp.StatusCode).Error("Informing driver of session end failed.")
+			continue
+		}
+	}
+}
+
 func (r *DriverRegister) GetDriverByType(t string) *Driver {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()

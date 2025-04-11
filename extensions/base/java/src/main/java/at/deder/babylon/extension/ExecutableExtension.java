@@ -30,4 +30,6 @@ public interface ExecutableExtension {
   String getSecret();
 
   boolean connectOnStartupEnabled();
+
+  void onSessionEnd(String id);
 }

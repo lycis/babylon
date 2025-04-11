@@ -48,6 +48,8 @@ func (r *sessionRegister) removeSession(id uuid.UUID) {
 	r.sessionMutex.Lock()
 	defer r.sessionMutex.Unlock()
 	sendSessionReport(r.activeSessions[id])
+	drivers.informEndOfSessioNnid(id)
+	informActorsEndOfSession(id)
 	delete(r.activeSessions, id)
 }
 

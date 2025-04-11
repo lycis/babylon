@@ -24,6 +24,32 @@ type ActorInfo struct {
 var knownActors map[string]ActorInfo
 var knownActorsMutex sync.Mutex
 
+func informActorsEndOfSession(id uuid.UUID) {
+	knownActorsMutex.Lock()
+	defer knownActorsMutex.Unlock()
+
+	for k, driver := range knownActors {
+		logger.With("actor", k, "session", id.String()).Info("Informing actor of session end.")
+		driverURL := fmt.Sprintf("%sactor/%s/session/%s", driver.Callback, driver.Name, id.String())
+		req, err := http.NewRequest(http.MethodDelete, driverURL, nil)
+		if err != nil {
+			logger.With("actor", k, "session", id.String(), "error", err.Error()).Error("Creating request to inform actor of session end failed.")
+			continue
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			logger.With("cator", k, "session", id.String(), "error", err.Error()).Error("Informing actor of session end failed.")
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			logger.With("cator", k, "session", id.String(), "statusCode", resp.StatusCode).Error("Informing actor of session end failed.")
+			continue
+		}
+	}
+}
+
 func init() {
 	knownActors = make(map[string]ActorInfo)
 }

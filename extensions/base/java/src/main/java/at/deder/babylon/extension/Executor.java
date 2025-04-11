@@ -39,6 +39,15 @@ public class Executor extends ExtensionBase implements Extension {
     // server side registration endpoint
     router.post("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/serverConnect").handler(BodyHandler.create());
     router.post("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/serverConnect").handler(new BlockingHandlerDecorator(this::handleServerConnectRequest, true));
+
+    // session end endpoint
+    router.delete("/"+ lowerCaseCategory() +"/"+ getImplementation().getName().toLowerCase()+"/session/:id").handler(new BlockingHandlerDecorator(this::handleSessionEnd, true));
+  }
+
+  private void handleSessionEnd(RoutingContext routingContext) {
+    String id = routingContext.pathParam("id");
+    getImplementation().onSessionEnd(id);
+    routingContext.json("ok");
   }
 
   private void handleExecutionRequest(RoutingContext context) {
