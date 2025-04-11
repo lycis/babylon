@@ -163,10 +163,6 @@ type reporterRegisterRequest struct {
 	Live     bool   `json:"live"`
 }
 
-type reporterDeleteRequest struct {
-	Name string `json:"name"`
-}
-
 func setupPreconfiguredReporter(name string) {
 	reporters.mutex.Lock()
 	defer reporters.mutex.Unlock()
