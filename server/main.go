@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -18,7 +19,13 @@ func main() {
 	logger = l.Sugar().WithOptions(zap.IncreaseLevel(zap.DebugLevel))
 
 	// update configuration
-	readConfig()
+	configFile := "babylon.yaml" // default
+
+	if len(os.Args) > 1 {
+		configFile = os.Args[1]
+	}
+
+	readConfig(configFile)
 
 	// Actor functions
 	http.HandleFunc("/actor/execute", runActor)
