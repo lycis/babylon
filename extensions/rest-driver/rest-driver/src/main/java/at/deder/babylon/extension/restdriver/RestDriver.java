@@ -16,11 +16,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class RestApiActor implements ExecutableExtension {
+public class RestDriver implements ExecutableExtension {
 
     public static void main(String... args) {
         BabylonExtensionServer
-                .forDriver(new RestApiActor())
+                .forDriver(new RestDriver())
                 .setPort(9088)
                 .run();
     }
@@ -79,12 +79,12 @@ public class RestApiActor implements ExecutableExtension {
 
     @Override
     public String getName() {
-        return "RestApi";
+        return "rest";
     }
 
     @Override
     public String getType() {
-        return "REST";
+        return "rest";
     }
 
     @Override
