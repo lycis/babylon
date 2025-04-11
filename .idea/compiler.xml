@@ -6,9 +6,12 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="selenium-driver" />
         <module name="extension" />
         <module name="java" />
+        <module name="rest-driver" />
         <module name="java-examples" />
+        <module name="odoo-showcase" />
       </profile>
     </annotationProcessing>
   </component>

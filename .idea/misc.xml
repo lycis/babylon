@@ -7,6 +7,9 @@
         <option value="$PROJECT_DIR$/clients/java/pom.xml" />
         <option value="$PROJECT_DIR$/extensions/base/java/pom.xml" />
         <option value="$PROJECT_DIR$/examples/java-examples/pom.xml" />
+        <option value="$PROJECT_DIR$/extensions/rest-driver/rest-driver/pom.xml" />
+        <option value="$PROJECT_DIR$/extensions/selenium-driver/pom.xml" />
+        <option value="$PROJECT_DIR$/odoo-showcase/pom.xml" />
       </list>
     </option>
   </component>
