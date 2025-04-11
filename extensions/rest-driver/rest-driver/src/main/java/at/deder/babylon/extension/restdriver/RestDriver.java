@@ -115,4 +115,9 @@ public class RestDriver implements ExecutableExtension {
     public boolean connectOnStartupEnabled() {
         return false;
     }
+
+    @Override
+    public void onSessionEnd(String id) {
+
+    }
 }

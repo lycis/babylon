@@ -45,4 +45,9 @@ public class ExampleActor implements ExecutableExtension {
   public boolean connectOnStartupEnabled() {
     return false;
   }
+
+  @Override
+  public void onSessionEnd(String id) {
+
+  }
 }
